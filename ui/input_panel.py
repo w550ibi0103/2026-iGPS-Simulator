@@ -4,12 +4,22 @@
 
 提供 Tkinter 介面元件，讓使用者輸入兩站基地台的
 經緯度、天線高度、模擬精度、功率參數等。
+每站下方有「載入座標」按鈕，可從預定義站點列表快速填入座標。
 """
 
+import os
 import tkinter as tk
 from tkinter import ttk
 
 from config import RESOLUTION_OPTIONS
+from ui.station_dialog import StationLoaderDialog
+
+
+# stations.json 路徑 (相對於專案根目錄)
+STATIONS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'stations.json'
+)
 
 
 class InputPanel(ttk.LabelFrame):
@@ -46,6 +56,11 @@ class InputPanel(ttk.LabelFrame):
         ttk.Entry(station_a_frame, textvariable=self.h_ant1_var,
                   width=14).grid(row=2, column=1, padx=4, pady=2)
 
+        # 站 A「載入座標」按鈕
+        ttk.Button(station_a_frame, text='📂 載入座標',
+                   command=lambda: self._load_station('A')).grid(
+            row=3, column=0, columnspan=2, padx=4, pady=(4, 2), sticky='ew')
+
         # ======== 站 B ========
         station_b_frame = ttk.LabelFrame(self, text=' 站 B (接收端) ')
         station_b_frame.grid(row=row, column=0, padx=8, pady=4, sticky='ew')
@@ -68,6 +83,11 @@ class InputPanel(ttk.LabelFrame):
         self.h_ant2_var = tk.StringVar(value='30')
         ttk.Entry(station_b_frame, textvariable=self.h_ant2_var,
                   width=14).grid(row=2, column=1, padx=4, pady=2)
+
+        # 站 B「載入座標」按鈕
+        ttk.Button(station_b_frame, text='📂 載入座標',
+                   command=lambda: self._load_station('B')).grid(
+            row=3, column=0, columnspan=2, padx=4, pady=(4, 2), sticky='ew')
 
         # ======== 模擬參數 ========
         sim_frame = ttk.LabelFrame(self, text=' 模擬參數 ')
@@ -121,6 +141,30 @@ class InputPanel(ttk.LabelFrame):
             row=row, column=0, padx=8, pady=2, sticky='w')
 
         self.columnconfigure(0, weight=1)
+
+    def _load_station(self, station: str):
+        """
+        開啟站點選擇對話框，並將選中的座標填入對應的欄位
+
+        Parameters
+        ----------
+        station : str
+            'A' 或 'B'，指定要填入哪一站的座標
+        """
+        dialog = StationLoaderDialog(
+            self.winfo_toplevel(),
+            STATIONS_FILE,
+            title=f'選擇站 {station} 的座標'
+        )
+
+        # 若使用者選了站點（非取消）
+        if dialog.result is not None:
+            if station == 'A':
+                self.lat1_var.set(str(dialog.result['lat']))
+                self.lon1_var.set(str(dialog.result['lon']))
+            else:
+                self.lat2_var.set(str(dialog.result['lat']))
+                self.lon2_var.set(str(dialog.result['lon']))
 
     def _on_simulate(self):
         self.status_var.set('⏳ 模擬中...')

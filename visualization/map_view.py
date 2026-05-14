@@ -4,6 +4,7 @@
 
 使用 folium 建立台灣互動地圖，標示兩站基地台位置、
 連線直線，並以顏色區分是否有遮蔽。
+產出完整 HTML 字串，可直接存為 .html 檔案用瀏覽器開啟。
 """
 
 import folium
@@ -18,7 +19,14 @@ class MapViewer:
                    lat2: float, lon2: float,
                    elev1: float, elev2: float,
                    is_obstructed: bool) -> str:
-        """建立互動地圖 HTML"""
+        """
+        建立互動地圖，回傳完整的獨立 HTML 字串
+
+        Returns
+        -------
+        str
+            完整的 HTML 文件字串（可直接存檔並用瀏覽器開啟）
+        """
         center_lat = (lat1 + lat2) / 2.0
         center_lon = (lon1 + lon2) / 2.0
         zoom = self._calculate_zoom(lat1, lon1, lat2, lon2)
@@ -56,7 +64,8 @@ class MapViewer:
             dash_array='10' if is_obstructed else None,
         ).add_to(m)
 
-        return m._repr_html_()
+        # 回傳完整獨立 HTML (非 Jupyter _repr_html_)
+        return m.get_root().render()
 
     def _calculate_zoom(self, lat1, lon1, lat2, lon2) -> int:
         max_diff = max(abs(lat2 - lat1), abs(lon2 - lon1))

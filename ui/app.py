@@ -143,6 +143,16 @@ class SimulatorApp:
 
     def _update_results(self, profile, los_result,
                         fresnel_result, diffraction_result, link_result):
+        # 計算 Fresnel 最差點的詳細資訊
+        i = fresnel_result.min_clearance_index
+        worst_los_h = los_result.los_heights[i]
+        worst_terrain_h = los_result.terrain_corrected[i]
+        worst_clearance = worst_los_h - worst_terrain_h
+        worst_fresnel_r = fresnel_result.fresnel_radii[i]
+        worst_fresnel_lower = worst_los_h - worst_fresnel_r
+        # 侵入深度 = 地形超出 Fresnel 下邊界的量 (正值=侵入, 負值=淨空)
+        worst_intrusion = worst_terrain_h - worst_fresnel_lower
+
         results = {
             'elev1': f'{profile.station1_elevation:.1f}',
             'elev2': f'{profile.station2_elevation:.1f}',
@@ -153,8 +163,17 @@ class SimulatorApp:
             'frequency': f'{FREQUENCY_MHZ}',
             'wavelength': f'{WAVELENGTH_M:.4f}',
             'min_clearance': f'{fresnel_result.min_clearance_ratio:.3f}',
-            'fresnel_status': '✅ 淨空' if fresnel_result.is_clear
-                              else '❌ 侵入',
+            'fresnel_status': '✅ 淨空 (≥0.6)' if fresnel_result.is_clear
+                              else '❌ 侵入 (<0.6)',
+            # Fresnel 最差點詳情
+            'worst_point_dist': f'{profile.distances[i] / 1000:.2f}',
+            'worst_los_h': f'{worst_los_h:.1f}',
+            'worst_terrain_h': f'{worst_terrain_h:.1f}',
+            'worst_clearance': f'{worst_clearance:.1f}',
+            'worst_fresnel_r': f'{worst_fresnel_r:.1f}',
+            'worst_fresnel_lower': f'{worst_fresnel_lower:.1f}',
+            'worst_intrusion': f'{worst_intrusion:.1f}',
+            # 損耗
             'fspl': f'{link_result.fspl_db:.2f}',
             'diffraction_loss': f'{diffraction_result.total_loss_db:.2f}',
             'total_loss': f'{link_result.total_path_loss_db:.2f}',

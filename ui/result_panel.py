@@ -47,6 +47,18 @@ class ResultPanel(ttk.LabelFrame):
         self._add_result_row(fresnel_frame, 2, '最小淨空比', '', 'min_clearance')
         self._add_result_row(fresnel_frame, 3, 'Fresnel 淨空', '', 'fresnel_status')
 
+        # Fresnel 最差點詳細資訊
+        detail_frame = ttk.LabelFrame(self, text=' Fresnel 最差點詳情 ')
+        detail_frame.grid(row=row, column=0, padx=8, pady=4, sticky='ew')
+        row += 1
+        self._add_result_row(detail_frame, 0, '最差點位置', 'km', 'worst_point_dist')
+        self._add_result_row(detail_frame, 1, 'LOS 高度', 'm', 'worst_los_h')
+        self._add_result_row(detail_frame, 2, '地形高度', 'm', 'worst_terrain_h')
+        self._add_result_row(detail_frame, 3, '淨空量', 'm', 'worst_clearance')
+        self._add_result_row(detail_frame, 4, 'Fresnel 半徑', 'm', 'worst_fresnel_r')
+        self._add_result_row(detail_frame, 5, 'Fresnel 下邊界', 'm', 'worst_fresnel_lower')
+        self._add_result_row(detail_frame, 6, '侵入深度', 'm', 'worst_intrusion')
+
         # 損耗與功率
         power_frame = ttk.LabelFrame(self, text=' 損耗與接收功率 ')
         power_frame.grid(row=row, column=0, padx=8, pady=4, sticky='ew')

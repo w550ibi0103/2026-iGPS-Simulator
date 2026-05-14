@@ -109,7 +109,7 @@ class FresnelCalculator:
             fresnel_radii=fresnel_radii,
             min_clearance_ratio=min_clearance_ratio,
             min_clearance_index=min_clearance_index,
-            is_clear=(min_clearance_ratio >= 1.0),
+            is_clear=(min_clearance_ratio >= 0.6),
             fresnel_upper=fresnel_upper,
             fresnel_lower=fresnel_lower,
         )
