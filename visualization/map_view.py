@@ -18,9 +18,15 @@ class MapViewer:
     def create_map(self, lat1: float, lon1: float,
                    lat2: float, lon2: float,
                    elev1: float, elev2: float,
-                   is_obstructed: bool) -> str:
+                   is_obstructed: bool,
+                   worst_point: dict = None) -> str:
         """
         建立互動地圖，回傳完整的獨立 HTML 字串
+
+        Parameters
+        ----------
+        worst_point : dict, optional
+            Fresnel 最差點資訊，包含 lat, lon, clearance_ratio, distance_km
 
         Returns
         -------
@@ -63,6 +69,25 @@ class MapViewer:
             tooltip='遮蔽' if is_obstructed else '暢通',
             dash_array='10' if is_obstructed else None,
         ).add_to(m)
+
+        # Fresnel 最差點標記
+        if worst_point:
+            wp_lat = worst_point['lat']
+            wp_lon = worst_point['lon']
+            wp_ratio = worst_point['clearance_ratio']
+            wp_dist = worst_point['distance_km']
+            folium.CircleMarker(
+                location=[wp_lat, wp_lon],
+                radius=6, weight=2,
+                color='#E67E22', fill=True,
+                fill_color='#F39C12', fill_opacity=0.8,
+                popup=folium.Popup(
+                    f'<b>Fresnel 最差點</b><br>'
+                    f'淨空比: {wp_ratio:.3f}<br>'
+                    f'距站 A: {wp_dist:.2f} km',
+                    max_width=180),
+                tooltip='Fresnel 最差點',
+            ).add_to(m)
 
         # 回傳完整獨立 HTML (非 Jupyter _repr_html_)
         return m.get_root().render()

@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-主視窗模組 — iGPS 模擬器
+主視窗模組 — iGPS 模擬器 (PyQt6)
 
-整合所有模組，提供三欄式 Tkinter 介面：
+整合所有模組，提供三欄式 PyQt6 介面：
   左欄: 輸入面板
   中欄: 地圖 + 剖面圖
   右欄: 結果面板
 """
 
-import tkinter as tk
-from tkinter import ttk, messagebox
 import traceback
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QHBoxLayout, QSplitter, QMessageBox,
+)
 
 from config import FREQUENCY_MHZ, WAVELENGTH_M, DEM_PATH
 from core.dem_loader import DEMLoader
@@ -28,20 +31,17 @@ from ui.result_panel import ResultPanel
 from ui.map_panel import MapPanel
 
 
-class SimulatorApp:
+class SimulatorApp(QMainWindow):
     """iGPS 模擬器主視窗"""
 
     WINDOW_TITLE = 'iGPS 無線電傳播模擬器 — 台灣地形'
     WINDOW_MIN_SIZE = (1200, 750)
 
     def __init__(self):
-        self._root = tk.Tk()
-        self._root.title(self.WINDOW_TITLE)
-        self._root.minsize(*self.WINDOW_MIN_SIZE)
-        try:
-            self._root.state('zoomed')
-        except tk.TclError:
-            pass
+        super().__init__()
+        self.setWindowTitle(self.WINDOW_TITLE)
+        self.setMinimumSize(*self.WINDOW_MIN_SIZE)
+        self.showMaximized()
 
         self._init_core_modules()
         self._create_ui()
@@ -65,21 +65,35 @@ class SimulatorApp:
 
     def _create_ui(self):
         """建立三欄式 UI 佈局"""
-        main_frame = ttk.Frame(self._root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+
+        # 使用 QSplitter 分割三欄
+        splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # 左欄: 輸入面板
         self._input_panel = InputPanel(
-            main_frame, on_simulate_callback=self._run_simulation)
-        self._input_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 5))
-
-        # 右欄: 結果面板
-        self._result_panel = ResultPanel(main_frame)
-        self._result_panel.pack(side=tk.RIGHT, fill=tk.Y, padx=(5, 0))
+            on_simulate_callback=self._run_simulation)
+        splitter.addWidget(self._input_panel)
 
         # 中欄: 地圖 + 剖面圖
-        self._map_panel = MapPanel(main_frame)
-        self._map_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self._map_panel = MapPanel()
+        splitter.addWidget(self._map_panel)
+
+        # 右欄: 結果面板
+        self._result_panel = ResultPanel()
+        splitter.addWidget(self._result_panel)
+
+        # 設定伸展因子 (輸入:地圖:結果 = 0:1:0)
+        # 左右固定寬度 (由 setFixedWidth 控制)，中間自動填充
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 0)
+
+        main_layout.addWidget(splitter)
 
     def _run_simulation(self):
         """執行完整模擬流程"""
@@ -122,23 +136,36 @@ class SimulatorApp:
                 fresnel_result, params['h_ant1'], params['h_ant2'])
             self._map_panel.refresh_profile()
 
-            # 更新地圖
+            # 計算 Fresnel 最差點的 WGS84 座標
+            wp_idx = fresnel_result.min_clearance_index
+            wp_x, wp_y = profile.coords_twd97[wp_idx]
+            wp_lon, wp_lat = self._coord_converter.twd97_to_wgs84(wp_x, wp_y)
+
+            # 更新地圖 (直接嵌入 QWebEngineView)
             map_html = self._map_viewer.create_map(
                 lat1=params['lat1'], lon1=params['lon1'],
                 lat2=params['lat2'], lon2=params['lon2'],
                 elev1=profile.station1_elevation,
                 elev2=profile.station2_elevation,
-                is_obstructed=not los_result.is_clear)
+                is_obstructed=not los_result.is_clear,
+                worst_point={
+                    'lat': wp_lat,
+                    'lon': wp_lon,
+                    'clearance_ratio': fresnel_result.min_clearance_ratio,
+                    'distance_km': profile.distances[wp_idx] / 1000,
+                })
             self._map_panel.update_map(map_html)
 
             self._input_panel.set_status('✅ 模擬完成')
 
         except ValueError as e:
-            messagebox.showerror('輸入錯誤', f'請檢查輸入參數:\n{e}')
+            QMessageBox.critical(
+                self, '輸入錯誤', f'請檢查輸入參數:\n{e}')
             self._input_panel.set_status('❌ 輸入錯誤')
         except Exception as e:
             traceback.print_exc()
-            messagebox.showerror('模擬錯誤', f'模擬過程中發生錯誤:\n{e}')
+            QMessageBox.critical(
+                self, '模擬錯誤', f'模擬過程中發生錯誤:\n{e}')
             self._input_panel.set_status('❌ 模擬失敗')
 
     def _update_results(self, profile, los_result,
@@ -182,4 +209,5 @@ class SimulatorApp:
         self._result_panel.update_results(results)
 
     def run(self):
-        self._root.mainloop()
+        """保持與舊版相容的啟動介面 — 由 main.py 中的 app.exec() 取代"""
+        self.show()

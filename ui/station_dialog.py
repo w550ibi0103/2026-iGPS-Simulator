@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-站點載入對話框模組
+站點載入對話框模組 (PyQt6)
 
 提供一個彈出視窗，列出所有已定義的站點資訊，
 讓使用者選擇後自動填入座標到輸入面板。
@@ -8,12 +8,16 @@
 """
 
 import json
-import os
-import tkinter as tk
-from tkinter import ttk, messagebox
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout,
+    QLabel, QTableWidget, QTableWidgetItem,
+    QPushButton, QMessageBox, QHeaderView,
+)
+from PyQt6.QtGui import QFont
 
 
-class StationLoaderDialog(tk.Toplevel):
+class StationLoaderDialog(QDialog):
     """
     站點載入對話框
 
@@ -24,7 +28,7 @@ class StationLoaderDialog(tk.Toplevel):
         """
         Parameters
         ----------
-        parent : tk.Widget
+        parent : QWidget
             父視窗
         stations_file : str
             stations.json 檔案路徑
@@ -32,13 +36,9 @@ class StationLoaderDialog(tk.Toplevel):
             對話框標題
         """
         super().__init__(parent)
-        self.title(title)
-        self.geometry('450x400')
-        self.resizable(False, True)
-
-        # 將對話框設為 modal (阻擋父視窗操作)
-        self.transient(parent)
-        self.grab_set()
+        self.setWindowTitle(title)
+        self.resize(480, 420)
+        self.setModal(True)
 
         # 結果：使用者選擇的站點 (None = 取消)
         self.result = None
@@ -49,104 +49,90 @@ class StationLoaderDialog(tk.Toplevel):
         # 建立 UI
         self._create_widgets()
 
-        # 置中顯示
-        self.update_idletasks()
-        x = parent.winfo_rootx() + (parent.winfo_width() - 450) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 400) // 2
-        self.geometry(f'+{x}+{y}')
-
-        # 等待關閉
-        self.wait_window()
-
     def _load_stations(self, stations_file: str) -> list:
         """從 JSON 檔案載入站點列表"""
         try:
             with open(stations_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except FileNotFoundError:
-            messagebox.showerror('錯誤', f'找不到站點檔案:\n{stations_file}')
+            QMessageBox.critical(
+                self, '錯誤', f'找不到站點檔案:\n{stations_file}')
             return []
         except json.JSONDecodeError as e:
-            messagebox.showerror('錯誤', f'站點檔案格式錯誤:\n{e}')
+            QMessageBox.critical(
+                self, '錯誤', f'站點檔案格式錯誤:\n{e}')
             return []
 
     def _create_widgets(self):
         """建立對話框元件"""
+        layout = QVBoxLayout(self)
+
         # 說明文字
-        ttk.Label(self, text='請選擇一個站點：',
-                  font=('Microsoft JhengHei', 10)).pack(
-            padx=10, pady=(10, 5), anchor='w')
+        hint_label = QLabel('請選擇一個站點：')
+        hint_label.setFont(QFont('Microsoft JhengHei', 10))
+        layout.addWidget(hint_label)
 
-        # 站點列表容器 (先建立 frame，再在裡面建立 Treeview)
-        tree_frame = ttk.Frame(self)
-        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # 站點表格
+        self._table = QTableWidget(len(self._stations), 3)
+        self._table.setHorizontalHeaderLabels(['站點名稱', '緯度 (°N)', '經度 (°E)'])
+        self._table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows)
+        self._table.setSelectionMode(
+            QTableWidget.SelectionMode.SingleSelection)
+        self._table.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers)
+        self._table.verticalHeader().setVisible(False)
 
-        # Treeview — parent 必須是 tree_frame
-        columns = ('name', 'lat', 'lon')
-        self._tree = ttk.Treeview(
-            tree_frame, columns=columns, show='headings',
-            selectmode='browse', height=12
-        )
-
-        # 設定欄位標題
-        self._tree.heading('name', text='站點名稱')
-        self._tree.heading('lat', text='緯度 (°N)')
-        self._tree.heading('lon', text='經度 (°E)')
-
-        # 設定欄位寬度
-        self._tree.column('name', width=160, anchor='w')
-        self._tree.column('lat', width=120, anchor='center')
-        self._tree.column('lon', width=120, anchor='center')
+        # 自動調整欄寬
+        header = self._table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
         # 填入站點資料
-        for station in self._stations:
-            self._tree.insert('', 'end', values=(
-                station['name'],
-                f"{station['lat']:.6f}",
-                f"{station['lon']:.6f}",
-            ))
+        for i, station in enumerate(self._stations):
+            name_item = QTableWidgetItem(station['name'])
+            lat_item = QTableWidgetItem(f"{station['lat']:.6f}")
+            lon_item = QTableWidgetItem(f"{station['lon']:.6f}")
 
-        # 捲軸 — parent 也必須是 tree_frame
-        scrollbar = ttk.Scrollbar(tree_frame, orient='vertical',
-                                  command=self._tree.yview)
-        self._tree.configure(yscrollcommand=scrollbar.set)
+            lat_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            lon_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # 排版 (都在 tree_frame 內)
-        self._tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # 按鈕列
-        btn_frame = ttk.Frame(self)
-        btn_frame.pack(fill=tk.X, padx=10, pady=(5, 10))
-
-        ttk.Button(btn_frame, text='確定',
-                   command=self._on_ok).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(btn_frame, text='取消',
-                   command=self._on_cancel).pack(side=tk.RIGHT, padx=5)
+            self._table.setItem(i, 0, name_item)
+            self._table.setItem(i, 1, lat_item)
+            self._table.setItem(i, 2, lon_item)
 
         # 雙擊也可以選擇
-        self._tree.bind('<Double-1>', lambda e: self._on_ok())
+        self._table.doubleClicked.connect(self._on_ok)
+
+        layout.addWidget(self._table)
+
+        # 按鈕列
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton('取消')
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        ok_btn = QPushButton('確定')
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(self._on_ok)
+        btn_layout.addWidget(ok_btn)
+
+        layout.addLayout(btn_layout)
 
     def _on_ok(self):
         """確定按鈕"""
-        selection = self._tree.selection()
-        if not selection:
-            messagebox.showwarning('提示', '請先選擇一個站點')
+        selected = self._table.selectionModel().selectedRows()
+        if not selected:
+            QMessageBox.warning(self, '提示', '請先選擇一個站點')
             return
 
-        # 取得選中的站點索引
-        item = self._tree.item(selection[0])
-        values = item['values']
-
-        # 回傳結果
+        row = selected[0].row()
         self.result = {
-            'name': values[0],
-            'lat': float(values[1]),
-            'lon': float(values[2]),
+            'name': self._table.item(row, 0).text(),
+            'lat': float(self._table.item(row, 1).text()),
+            'lon': float(self._table.item(row, 2).text()),
         }
-        self.destroy()
-
-    def _on_cancel(self):
-        """取消按鈕"""
-        self.result = None
-        self.destroy()
+        self.accept()
