@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """整合測試 — 驗證修復後的 Deygout 迭代演算法"""
 import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import DEM_PATH, WAVELENGTH_M, FREQUENCY_MHZ
 from core.dem_loader import DEMLoader

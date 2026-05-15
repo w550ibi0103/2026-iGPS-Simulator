@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import sys; sys.path.insert(0, '.')
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import *
 from core.dem_loader import DEMLoader
 from core.coordinate import CoordinateConverter

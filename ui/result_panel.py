@@ -93,11 +93,20 @@ class ResultPanel(QWidget):
         self._add_result_row(power_form, '接收功率 (dBm)', 'dBm', 'rx_power')
         main_layout.addWidget(power_group)
 
+        # Fresnel 說明
+        fresnel_explanation_group = QGroupBox(' Fresnel 說明 ')
+        fresnel_explanation_layout = QVBoxLayout(fresnel_explanation_group)
+        fresnel_explanation_label = QLabel("Fresnel 下邊界=LOS高度-Fresnel半徑\n侵入深度=Fresnel下邊界-地形高度")
+        fresnel_explanation_label.setStyleSheet('color: gray; font-size: 9px;')
+        fresnel_explanation_label.setFont(QFont('Microsoft JhengHei', 8))
+        fresnel_explanation_layout.addWidget(fresnel_explanation_label)
+        main_layout.addWidget(fresnel_explanation_group)
+
         # 繞射方法說明
         method_group = QGroupBox(' 繞射模型 ')
         method_layout = QVBoxLayout(method_group)
         method_label = QLabel(
-            "方法: Deygout 多刃法\n(ITU-R P.526)\n地球曲率: k=4/3\nFresnel 下邊界=LOS高度-Fresnel半徑\n侵入深度=Fresnel下邊界-地形高度")
+            "方法: Deygout 多刃法\n(ITU-R P.526)\n地球曲率: k=4/3\n")
         method_label.setStyleSheet('color: gray; font-size: 9px;')
         method_label.setFont(QFont('Microsoft JhengHei', 8))
         method_layout.addWidget(method_label)
