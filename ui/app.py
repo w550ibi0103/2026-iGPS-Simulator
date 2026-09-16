@@ -43,15 +43,16 @@ class SimulatorApp(QMainWindow):
         self.setMinimumSize(*self.WINDOW_MIN_SIZE)
         self.showMaximized()
 
+        self._dem_loader = None
+        self._terrain_profiler = None
+
         self._init_core_modules()
         self._create_ui()
+        self._on_dem_path_changed(DEM_PATH)
 
     def _init_core_modules(self):
-        """初始化所有核心計算模組 (依賴注入)"""
-        self._dem_loader = DEMLoader(DEM_PATH)
+        """初始化不依賴 DEM 的核心計算模組 (依賴注入)"""
         self._coord_converter = CoordinateConverter()
-        self._terrain_profiler = TerrainProfiler(
-            self._dem_loader, self._coord_converter)
         self._earth_curvature = EarthCurvature()
         self._los_analyzer = LOSAnalyzer(self._earth_curvature)
         self._fresnel_calc = FresnelCalculator(
@@ -76,7 +77,9 @@ class SimulatorApp(QMainWindow):
 
         # 左欄: 輸入面板
         self._input_panel = InputPanel(
-            on_simulate_callback=self._run_simulation)
+            on_simulate_callback=self._run_simulation,
+            initial_dem_path=DEM_PATH,
+            on_dem_path_changed_callback=self._on_dem_path_changed)
         splitter.addWidget(self._input_panel)
 
         # 中欄: 地圖 + 剖面圖
@@ -95,8 +98,27 @@ class SimulatorApp(QMainWindow):
 
         main_layout.addWidget(splitter)
 
+    def _on_dem_path_changed(self, path: str):
+        """依新路徑嘗試載入 DEM，並將結果回報給輸入面板"""
+        try:
+            dem_loader = DEMLoader(path)
+            self._terrain_profiler = TerrainProfiler(
+                dem_loader, self._coord_converter)
+            self._dem_loader = dem_loader
+            self._input_panel.set_dem_status(True)
+        except Exception as e:
+            self._dem_loader = None
+            self._terrain_profiler = None
+            self._input_panel.set_dem_status(False, str(e))
+
     def _run_simulation(self):
         """執行完整模擬流程"""
+        if self._terrain_profiler is None:
+            QMessageBox.critical(
+                self, 'DEM 未載入', '請先選擇有效的 DEM 檔案路徑')
+            self._input_panel.set_status('❌ DEM 未載入')
+            return
+
         try:
             params = self._input_panel.get_parameters()
 

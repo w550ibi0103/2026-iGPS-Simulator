@@ -10,8 +10,8 @@
 import os
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QFormLayout,
-    QLineEdit, QComboBox, QPushButton, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QFormLayout,
+    QLineEdit, QComboBox, QPushButton, QLabel, QFileDialog,
 )
 
 from config import RESOLUTION_OPTIONS
@@ -28,9 +28,13 @@ STATIONS_FILE = os.path.join(
 class InputPanel(QWidget):
     """輸入面板"""
 
-    def __init__(self, parent=None, on_simulate_callback=None):
+    def __init__(self, parent=None, on_simulate_callback=None,
+                 initial_dem_path='', on_dem_path_changed_callback=None):
         super().__init__(parent)
         self._callback = on_simulate_callback
+        self._on_dem_path_changed_callback = on_dem_path_changed_callback
+        self._initial_dem_path = initial_dem_path
+        self._dem_ready = False
         self.setFixedWidth(280)
         self._create_widgets()
 
@@ -38,6 +42,23 @@ class InputPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(4, 4, 4, 4)
         main_layout.setSpacing(6)
+
+        # ======== DEM 地形資料 ========
+        dem_group = QGroupBox(' DEM 地形資料 ')
+        dem_form = QFormLayout(dem_group)
+
+        dem_path_layout = QHBoxLayout()
+        self._dem_path_edit = QLineEdit(self._initial_dem_path)
+        self._dem_path_edit.setToolTip(self._initial_dem_path)
+        self._dem_path_edit.editingFinished.connect(self._on_dem_path_edited)
+        dem_path_layout.addWidget(self._dem_path_edit)
+
+        dem_browse_btn = QPushButton('瀏覽...')
+        dem_browse_btn.clicked.connect(self._browse_dem_path)
+        dem_path_layout.addWidget(dem_browse_btn)
+
+        dem_form.addRow(dem_path_layout)
+        main_layout.addWidget(dem_group)
 
         # ======== 站 A ========
         station_a_group = QGroupBox(' 站 A (發射端) ')
@@ -110,6 +131,7 @@ class InputPanel(QWidget):
         self._simulate_btn.setStyleSheet(
             'QPushButton { font-size: 14px; font-weight: bold; }')
         self._simulate_btn.clicked.connect(self._on_simulate)
+        self._simulate_btn.setEnabled(False)
         main_layout.addWidget(self._simulate_btn)
 
         # ======== 狀態列 ========
@@ -119,6 +141,46 @@ class InputPanel(QWidget):
 
         # 彈性空間
         main_layout.addStretch()
+
+    def _browse_dem_path(self):
+        """開啟檔案選擇對話框，選擇 DEM GeoTIFF 檔案"""
+        start_dir = os.path.dirname(self._dem_path_edit.text())
+        path, _ = QFileDialog.getOpenFileName(
+            self, '選擇 DEM 檔案', start_dir, 'GeoTIFF (*.tif *.tiff)')
+        if path:
+            self._dem_path_edit.setText(path)
+            self._notify_dem_path_changed()
+
+    def _on_dem_path_edited(self):
+        """使用者手動編輯路徑欄位後 (按 Enter 或失焦) 觸發驗證"""
+        self._notify_dem_path_changed()
+
+    def _notify_dem_path_changed(self):
+        if self._on_dem_path_changed_callback:
+            self._on_dem_path_changed_callback(self._dem_path_edit.text())
+
+    def set_dem_status(self, is_valid: bool, message: str = ''):
+        """
+        依 DEM 載入結果更新路徑方框顏色與模擬按鈕狀態
+
+        Parameters
+        ----------
+        is_valid : bool
+            DEM 是否成功載入
+        message : str
+            失敗時的錯誤訊息，會顯示於 tooltip
+        """
+        if is_valid:
+            self._dem_path_edit.setStyleSheet(
+                'QLineEdit { background-color: #D5F5E3; }')
+            self._dem_path_edit.setToolTip(self._dem_path_edit.text())
+        else:
+            self._dem_path_edit.setStyleSheet(
+                'QLineEdit { background-color: #FADBD8; }')
+            self._dem_path_edit.setToolTip(
+                message or '找不到有效的 DEM 檔案')
+        self._dem_ready = is_valid
+        self._simulate_btn.setEnabled(is_valid)
 
     def _load_station(self, station: str):
         """
@@ -174,4 +236,4 @@ class InputPanel(QWidget):
             self._status_label.setStyleSheet('color: #E74C3C;')
         else:
             self._status_label.setStyleSheet('color: gray;')
-        self._simulate_btn.setEnabled(True)
+        self._simulate_btn.setEnabled(self._dem_ready)

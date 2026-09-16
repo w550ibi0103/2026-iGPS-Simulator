@@ -30,6 +30,7 @@ class DEMLoader:
         dem_path : str
             DEM GeoTIFF 檔案的完整路徑
         """
+        self._dataset = None
         self._dataset = rasterio.open(dem_path)
         # 預先讀取 band 1 到記憶體以加速後續查詢
         self._elevation_data = self._dataset.read(1)
