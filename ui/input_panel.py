@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QComboBox, QPushButton, QLabel, QFileDialog,
 )
 
-from config import RESOLUTION_OPTIONS
+from config import RESOLUTION_OPTIONS, LATERAL_SCAN_WIDTH_OPTIONS
 from ui.station_dialog import StationLoaderDialog
 
 
@@ -107,6 +107,12 @@ class InputPanel(QWidget):
             self._resolution_combo.addItem(str(key), key)
         self._resolution_combo.setCurrentIndex(0)  # 預設 20m
         sim_form.addRow('取樣精度 (m):', self._resolution_combo)
+
+        self._scan_width_combo = QComboBox()
+        for key, desc in LATERAL_SCAN_WIDTH_OPTIONS.items():
+            self._scan_width_combo.addItem(desc, key)
+        self._scan_width_combo.setCurrentIndex(0)  # 預設 100m
+        sim_form.addRow('側向掃描寬度 (±m):', self._scan_width_combo)
 
         main_layout.addWidget(sim_group)
 
@@ -223,6 +229,7 @@ class InputPanel(QWidget):
             'h_ant1': float(self._h_ant1_edit.text()),
             'h_ant2': float(self._h_ant2_edit.text()),
             'resolution_m': int(self._resolution_combo.currentText()),
+            'scan_width_m': self._scan_width_combo.currentData(),
             'tx_power_dbm': float(self._tx_power_edit.text()),
             'tx_gain_dbi': float(self._tx_gain_edit.text()),
             'rx_gain_dbi': float(self._rx_gain_edit.text()),

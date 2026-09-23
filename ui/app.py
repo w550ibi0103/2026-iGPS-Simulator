@@ -24,8 +24,10 @@ from core.los_analysis import LOSAnalyzer
 from core.fresnel import FresnelCalculator
 from core.diffraction import DiffractionCalculator
 from core.link_budget import LinkBudgetCalculator
+from core.lateral_scan import LateralScanAnalyzer
 from visualization.profile_plot import ProfilePlotter
 from visualization.map_view import MapViewer
+from visualization.lateral_scan_plot import LateralScanPlotter
 from ui.input_panel import InputPanel
 from ui.result_panel import ResultPanel
 from ui.map_panel import MapPanel
@@ -61,8 +63,10 @@ class SimulatorApp(QMainWindow):
             wavelength=WAVELENGTH_M, earth_curvature=self._earth_curvature)
         self._link_budget_calc = LinkBudgetCalculator(
             frequency_mhz=FREQUENCY_MHZ)
+        self._lateral_scan_analyzer = LateralScanAnalyzer(self._earth_curvature)
         self._profile_plotter = ProfilePlotter()
         self._map_viewer = MapViewer()
+        self._lateral_scan_plotter = LateralScanPlotter()
 
     def _create_ui(self):
         """建立三欄式 UI 佈局"""
@@ -132,6 +136,15 @@ class SimulatorApp(QMainWindow):
             los_result = self._los_analyzer.analyze(
                 profile, params['h_ant1'], params['h_ant2'])
 
+            # 側向地形掃描 (走廊範圍內地形是否穿越直線 LOS 高度)
+            lateral_scan_result = self._lateral_scan_analyzer.scan(
+                terrain_profiler=self._terrain_profiler,
+                lon1=params['lon1'], lat1=params['lat1'],
+                lon2=params['lon2'], lat2=params['lat2'],
+                resolution_m=params['resolution_m'],
+                scan_width_m=params['scan_width_m'],
+                los_heights=los_result.los_heights)
+
             # Fresnel 淨空
             fresnel_result = self._fresnel_calc.analyze(profile, los_result)
 
@@ -157,6 +170,11 @@ class SimulatorApp(QMainWindow):
                 self._map_panel.fig, profile, los_result,
                 fresnel_result, params['h_ant1'], params['h_ant2'])
             self._map_panel.refresh_profile()
+
+            # 繪製側向地形掃描圖
+            self._lateral_scan_plotter.plot(
+                self._map_panel.lateral_fig, lateral_scan_result)
+            self._map_panel.refresh_lateral_scan()
 
             # 計算 Fresnel 最差點的 WGS84 座標
             wp_idx = fresnel_result.min_clearance_index

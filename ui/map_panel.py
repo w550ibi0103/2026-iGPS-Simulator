@@ -8,7 +8,7 @@
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QSplitter, QGroupBox, QLabel,
+    QWidget, QVBoxLayout, QSplitter, QGroupBox, QLabel, QTabWidget,
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from matplotlib.figure import Figure
@@ -40,35 +40,35 @@ class MapPanel(QWidget):
 
         splitter.addWidget(map_group)
 
-        # ======== 下方: 剖面圖 (matplotlib) ========
-        profile_group = QGroupBox(' 📈 地形剖面圖 ')
-        profile_layout = QVBoxLayout(profile_group)
+        # ======== 下方: 剖面圖 / 側向掃描圖 (分頁) ========
+        plot_tabs = QTabWidget()
 
         self._fig = Figure(figsize=(8, 4), dpi=100)
         self._canvas = FigureCanvasQTAgg(self._fig)
-        profile_layout.addWidget(self._canvas)
+        plot_tabs.addTab(self._canvas, '📈 地形剖面圖')
 
-        splitter.addWidget(profile_group)
+        self._lateral_fig = Figure(figsize=(8, 4), dpi=100)
+        self._lateral_canvas = FigureCanvasQTAgg(self._lateral_fig)
+        plot_tabs.addTab(self._lateral_canvas, '🧭 側向掃描圖')
+
+        splitter.addWidget(plot_tabs)
 
         # 設定分割比例 (地圖:剖面圖 = 1:2)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 2)
 
         # 初始空白剖面圖
-        ax = self._fig.add_subplot(111)
-        ax.set_facecolor('#D6EAF8')
-        ax.text(0.5, 0.5, '剖面圖將在模擬後顯示',
-                ha='center', va='center', fontsize=12,
-                color='gray', fontfamily='Microsoft JhengHei',
-                transform=ax.transAxes)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        self._fig.tight_layout()
-        self._canvas.draw()
+        self._draw_placeholder(self._fig, self._canvas, '剖面圖將在模擬後顯示')
+        self._draw_placeholder(self._lateral_fig, self._lateral_canvas,
+                                '側向掃描圖將在模擬後顯示')
 
     @property
     def fig(self) -> Figure:
         return self._fig
+
+    @property
+    def lateral_fig(self) -> Figure:
+        return self._lateral_fig
 
     def update_map(self, html_content: str):
         """
@@ -83,6 +83,24 @@ class MapPanel(QWidget):
 
     def refresh_profile(self):
         self._canvas.draw()
+
+    def refresh_lateral_scan(self):
+        self._lateral_canvas.draw()
+
+    @staticmethod
+    def _draw_placeholder(fig: Figure, canvas: FigureCanvasQTAgg,
+                          message: str):
+        """在指定的 Figure 上畫出等待提示文字"""
+        ax = fig.add_subplot(111)
+        ax.set_facecolor('#D6EAF8')
+        ax.text(0.5, 0.5, message,
+                ha='center', va='center', fontsize=12,
+                color='gray', fontfamily='Microsoft JhengHei',
+                transform=ax.transAxes)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        fig.tight_layout()
+        canvas.draw()
 
     @staticmethod
     def _placeholder_html(message: str) -> str:

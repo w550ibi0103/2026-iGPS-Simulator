@@ -64,7 +64,8 @@ class TerrainProfiler:
 
     def extract_profile(self, lon1: float, lat1: float,
                         lon2: float, lat2: float,
-                        resolution_m: int = 20) -> TerrainProfile:
+                        resolution_m: int = 20,
+                        lateral_offset_m: float = 0.0) -> TerrainProfile:
         """
         提取兩站之間的地形剖面
 
@@ -76,6 +77,9 @@ class TerrainProfiler:
             站 B 的 WGS84 經緯度 (度)
         resolution_m : int
             目標取樣精度 (m)，可選 20, 10, 5, 1
+        lateral_offset_m : float
+            以中心線為基準，沿垂直方向平移的距離 (m)。
+            正值為左側 (面向站 B 方向的左手邊)，負值為右側，0 為中心線本身。
 
         Returns
         -------
@@ -85,6 +89,16 @@ class TerrainProfiler:
         # 1. 轉換為 TWD97 座標
         x1, y1 = self._converter.wgs84_to_twd97(lon1, lat1)
         x2, y2 = self._converter.wgs84_to_twd97(lon2, lat2)
+
+        # 1.1 若需要側向平移，沿中心線垂直方向平移兩端點 (線長與方向不變)
+        if lateral_offset_m != 0.0:
+            dx, dy = x2 - x1, y2 - y1
+            line_length = np.sqrt(dx ** 2 + dy ** 2)
+            nx, ny = -dy / line_length, dx / line_length
+            x1 += nx * lateral_offset_m
+            y1 += ny * lateral_offset_m
+            x2 += nx * lateral_offset_m
+            y2 += ny * lateral_offset_m
 
         # 2. 計算兩站距離
         total_distance = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
